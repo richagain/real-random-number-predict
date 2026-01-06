@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}Predict - Singapore TOTO Predictor{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <h1 class="text-3xl font-bold text-gray-800">Number Predictions</h1>
+
+    <!-- Strategy Selection -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Generate Predictions</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            <div class="border rounded-lg p-4 cursor-pointer hover:border-blue-500 strategy-card" data-strategy="ensemble">
+                <h3 class="font-bold text-lg text-blue-600">Ensemble</h3>
+                <p class="text-gray-600 text-sm">Combines all strategies for balanced predictions. Recommended for best results.</p>
+            </div>
+            <div class="border rounded-lg p-4 cursor-pointer hover:border-blue-500 strategy-card" data-strategy="hot">
+                <h3 class="font-bold text-lg text-red-600">Hot Numbers</h3>
+                <p class="text-gray-600 text-sm">Favors numbers that appear frequently. Based on the "hot hand" theory.</p>
+            </div>
+            <div class="border rounded-lg p-4 cursor-pointer hover:border-blue-500 strategy-card" data-strategy="cold">
+                <h3 class="font-bold text-lg text-blue-800">Cold Numbers</h3>
+                <p class="text-gray-600 text-sm">Favors overdue numbers. Based on the "due number" theory.</p>
+            </div>
+            <div class="border rounded-lg p-4 cursor-pointer hover:border-blue-500 strategy-card" data-strategy="balanced">
+                <h3 class="font-bold text-lg text-green-600">Balanced</h3>
+                <p class="text-gray-600 text-sm">Ensures good distribution of odd/even and high/low numbers.</p>
+            </div>
+            <div class="border rounded-lg p-4 cursor-pointer hover:border-blue-500 strategy-card" data-strategy="ml">
+                <h3 class="font-bold text-lg text-purple-600">Machine Learning</h3>
+                <p class="text-gray-600 text-sm">Uses LSTM neural network to predict based on sequence patterns.</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4 mb-4">
+            <label class="text-gray-600">Number of predictions:</label>
+            <select id="count" class="px-3 py-2 border rounded">
+                <option value="1">1</option>
+                <option value="3">3</option>
+                <option value="5" selected>5</option>
+                <option value="10">10</option>
+            </select>
+            <button id="generate-btn" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700">
+                Generate Predictions
+            </button>
+            <button id="generate-all-btn" class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700">
+                All Strategies
+            </button>
+        </div>
+
+        <p class="text-sm text-gray-500">Selected strategy: <span id="selected-strategy" class="font-bold">ensemble</span></p>
+    </div>
+
+    <!-- Predictions Display -->
+    <div id="predictions-container" class="space-y-4">
+        <div class="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+            Select a strategy and click "Generate Predictions" to get started.
+        </div>
+    </div>
+
+    <!-- Disclaimer -->
+    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <h3 class="font-bold text-yellow-800 mb-2">Disclaimer</h3>
+        <p class="text-yellow-700 text-sm">
+            Lottery numbers are randomly drawn, and no prediction system can guarantee winning numbers.
+            These predictions are for entertainment purposes only. The odds of winning the TOTO jackpot
+            are approximately 1 in 13,983,816. Please gamble responsibly.
+        </p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let selectedStrategy = 'ensemble';
+
+    // Strategy selection
+    document.querySelectorAll('.strategy-card').forEach(card => {
+        card.addEventListener('click', () => {
+            document.querySelectorAll('.strategy-card').forEach(c => c.classList.remove('border-blue-500', 'bg-blue-50'));
+            card.classList.add('border-blue-500', 'bg-blue-50');
+            selectedStrategy = card.dataset.strategy;
+            document.getElementById('selected-strategy').textContent = selectedStrategy;
+        });
+    });
+
+    // Select default
+    document.querySelector('[data-strategy="ensemble"]').classList.add('border-blue-500', 'bg-blue-50');
+
+    function renderPrediction(pred, index) {
+        const balls = pred.numbers.map(n =>
+            `<span class="ball ball-predicted">${n}</span>`
+        ).join('');
+
+        return `
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-lg">Prediction #${index + 1}</h3>
+                    <span class="px-3 py-1 bg-gray-100 rounded-full text-sm">${pred.strategy}</span>
+                </div>
+                <div class="text-center mb-4">
+                    ${balls}
+                </div>
+                <div class="text-sm text-gray-600">
+                    ${pred.reasoning ? `<p>${pred.reasoning}</p>` : ''}
+                    ${pred.confidence ? `<p class="mt-1">Confidence: ${(pred.confidence * 100).toFixed(1)}%</p>` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    // Generate predictions
+    document.getElementById('generate-btn').addEventListener('click', async () => {
+        const count = parseInt(document.getElementById('count').value);
+        const container = document.getElementById('predictions-container');
+        container.innerHTML = '<div class="bg-white rounded-lg shadow p-6 text-center text-gray-500">Generating predictions...</div>';
+
+        try {
+            const response = await fetch('/api/predict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ strategy: selectedStrategy, count })
+            });
+            const data = await response.json();
+
+            if (data.predictions && data.predictions.length > 0) {
+                container.innerHTML = `
+                    <div class="text-gray-600 mb-4">
+                        Generated ${data.predictions.length} predictions based on ${data.based_on_draws} historical draws
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        ${data.predictions.map((p, i) => renderPrediction(p, i)).join('')}
+                    </div>
+                `;
+            } else {
+                container.innerHTML = '<div class="bg-white rounded-lg shadow p-6 text-center text-red-500">Failed to generate predictions</div>';
+            }
+        } catch (error) {
+            container.innerHTML = `<div class="bg-white rounded-lg shadow p-6 text-center text-red-500">Error: ${error.message}</div>`;
+        }
+    });
+
+    // Generate all strategies
+    document.getElementById('generate-all-btn').addEventListener('click', async () => {
+        const count = 1;
+        const container = document.getElementById('predictions-container');
+        container.innerHTML = '<div class="bg-white rounded-lg shadow p-6 text-center text-gray-500">Generating predictions from all strategies...</div>';
+
+        try {
+            const response = await fetch(`/api/predict/all?count=${count}`, { method: 'POST' });
+            const data = await response.json();
+
+            const strategies = ['ensemble', 'hot', 'cold', 'balanced', 'ml'];
+            let html = `
+                <div class="text-gray-600 mb-4">
+                    Predictions from all strategies (based on ${data.based_on_draws} draws)
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            `;
+
+            for (const strategy of strategies) {
+                const preds = data.predictions[strategy];
+                if (preds && preds.length > 0 && !preds[0].error) {
+                    html += renderPrediction(preds[0], strategies.indexOf(strategy));
+                }
+            }
+
+            html += '</div>';
+            container.innerHTML = html;
+        } catch (error) {
+            container.innerHTML = `<div class="bg-white rounded-lg shadow p-6 text-center text-red-500">Error: ${error.message}</div>`;
+        }
+    });
+</script>
+{% endblock %}

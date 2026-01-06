@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block title %}Statistics - Singapore TOTO Predictor{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <h1 class="text-3xl font-bold text-gray-800">Number Statistics</h1>
+
+    <!-- Controls -->
+    <div class="bg-white rounded-lg shadow p-4">
+        <div class="flex items-center gap-4">
+            <label class="text-gray-600">Analyze last:</label>
+            <select id="lookback" class="px-3 py-2 border rounded">
+                <option value="50">50 draws</option>
+                <option value="100" selected>100 draws</option>
+                <option value="200">200 draws</option>
+                <option value="500">500 draws</option>
+                <option value="">All draws</option>
+            </select>
+            <button id="refresh-btn" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-white rounded-lg shadow p-4">
+            <h3 class="text-gray-500 text-sm">Draws Analyzed</h3>
+            <p id="stat-draws" class="text-2xl font-bold text-blue-600">-</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <h3 class="text-gray-500 text-sm">Average Sum</h3>
+            <p id="stat-avg-sum" class="text-2xl font-bold text-green-600">-</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <h3 class="text-gray-500 text-sm">Avg Odd/Even</h3>
+            <p id="stat-odd-even" class="text-2xl font-bold text-purple-600">-</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <h3 class="text-gray-500 text-sm">Avg High/Low</h3>
+            <p id="stat-high-low" class="text-2xl font-bold text-orange-600">-</p>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white rounded-lg shadow p-4">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Number Frequency</h2>
+            <div id="frequency-chart" style="height: 400px;"></div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Gap Since Last Appearance</h2>
+            <div id="gap-chart" style="height: 400px;"></div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white rounded-lg shadow p-4">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Odd/Even Distribution</h2>
+            <div id="odd-even-chart" style="height: 300px;"></div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Sum Distribution</h2>
+            <div id="sum-chart" style="height: 300px;"></div>
+        </div>
+    </div>
+
+    <!-- Hot/Cold Numbers Table -->
+    <div class="bg-white rounded-lg shadow p-4">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Number Details</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-2 text-left">#</th>
+                        <th class="px-4 py-2 text-left">Appearances</th>
+                        <th class="px-4 py-2 text-left">Frequency %</th>
+                        <th class="px-4 py-2 text-left">Gap</th>
+                        <th class="px-4 py-2 text-left">Last Drawn</th>
+                    </tr>
+                </thead>
+                <tbody id="numbers-table" class="divide-y"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadStatistics() {
+        const lookback = document.getElementById('lookback').value;
+        const url = lookback ? `/api/statistics?lookback=${lookback}` : '/api/statistics';
+
+        try {
+            const data = await fetch(url).then(r => r.json());
+
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+
+            // Update summary stats
+            document.getElementById('stat-draws').textContent = data.total_draws;
+            document.getElementById('stat-avg-sum').textContent = data.sum_statistics?.mean?.toFixed(1) || '-';
+            document.getElementById('stat-odd-even').textContent =
+                `${data.odd_even_distribution?.average_odd?.toFixed(1) || '-'}O / ${data.odd_even_distribution?.average_even?.toFixed(1) || '-'}E`;
+            document.getElementById('stat-high-low').textContent =
+                `${data.high_low_distribution?.average_high?.toFixed(1) || '-'}H / ${data.high_low_distribution?.average_low?.toFixed(1) || '-'}L`;
+
+            // Frequency chart
+            const freqs = data.number_frequencies || [];
+            freqs.sort((a, b) => a.number - b.number);
+
+            Plotly.newPlot('frequency-chart', [{
+                x: freqs.map(f => f.number),
+                y: freqs.map(f => f.total_appearances),
+                type: 'bar',
+                marker: { color: '#3b82f6' }
+            }], {
+                margin: { t: 20, r: 20, b: 40, l: 40 },
+                xaxis: { title: 'Number', dtick: 5 },
+                yaxis: { title: 'Appearances' }
+            });
+
+            // Gap chart
+            Plotly.newPlot('gap-chart', [{
+                x: freqs.map(f => f.number),
+                y: freqs.map(f => f.draws_since_last),
+                type: 'bar',
+                marker: {
+                    color: freqs.map(f => f.draws_since_last > 10 ? '#ef4444' : '#10b981')
+                }
+            }], {
+                margin: { t: 20, r: 20, b: 40, l: 40 },
+                xaxis: { title: 'Number', dtick: 5 },
+                yaxis: { title: 'Draws Since Last' }
+            });
+
+            // Odd/Even pie chart
+            const oddEven = data.odd_even_distribution?.distribution || {};
+            Plotly.newPlot('odd-even-chart', [{
+                values: Object.values(oddEven),
+                labels: Object.keys(oddEven),
+                type: 'pie',
+                marker: { colors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'] }
+            }], {
+                margin: { t: 20, r: 20, b: 20, l: 20 }
+            });
+
+            // Sum distribution
+            const sumDist = data.sum_statistics?.distribution || {};
+            const sortedSums = Object.entries(sumDist).sort((a, b) => parseInt(a[0]) - parseInt(b[0]));
+            Plotly.newPlot('sum-chart', [{
+                x: sortedSums.map(s => s[0]),
+                y: sortedSums.map(s => s[1]),
+                type: 'bar',
+                marker: { color: '#8b5cf6' }
+            }], {
+                margin: { t: 20, r: 20, b: 40, l: 40 },
+                xaxis: { title: 'Sum' },
+                yaxis: { title: 'Count' }
+            });
+
+            // Numbers table
+            const sortedFreqs = [...freqs].sort((a, b) => b.total_appearances - a.total_appearances);
+            document.getElementById('numbers-table').innerHTML = sortedFreqs.map(f => `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-2">
+                        <span class="ball ball-main" style="width:32px;height:32px;font-size:0.75rem;">${f.number}</span>
+                    </td>
+                    <td class="px-4 py-2">${f.total_appearances}</td>
+                    <td class="px-4 py-2">${f.frequency_percentage?.toFixed(2)}%</td>
+                    <td class="px-4 py-2 ${f.draws_since_last > 10 ? 'text-red-600 font-bold' : ''}">${f.draws_since_last}</td>
+                    <td class="px-4 py-2">${f.last_drawn_date ? new Date(f.last_drawn_date).toLocaleDateString() : 'Never'}</td>
+                </tr>
+            `).join('');
+
+        } catch (error) {
+            console.error('Error loading statistics:', error);
+            alert('Error loading statistics. Make sure you have data in the database.');
+        }
+    }
+
+    document.getElementById('refresh-btn').addEventListener('click', loadStatistics);
+    document.getElementById('lookback').addEventListener('change', loadStatistics);
+
+    loadStatistics();
+</script>
+{% endblock %}

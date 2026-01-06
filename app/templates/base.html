@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Singapore TOTO Predictor{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        .ball {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.25rem;
+            color: white;
+            margin: 2px;
+        }
+        .ball-main { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+        .ball-additional { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .ball-predicted { background: linear-gradient(135deg, #10b981, #059669); }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <nav class="bg-blue-600 text-white shadow-lg">
+        <div class="container mx-auto px-4">
+            <div class="flex items-center justify-between h-16">
+                <a href="/" class="text-xl font-bold">TOTO Predictor</a>
+                <div class="flex space-x-4">
+                    <a href="/" class="hover:bg-blue-700 px-3 py-2 rounded">Dashboard</a>
+                    <a href="/history" class="hover:bg-blue-700 px-3 py-2 rounded">History</a>
+                    <a href="/statistics" class="hover:bg-blue-700 px-3 py-2 rounded">Statistics</a>
+                    <a href="/predict" class="hover:bg-blue-700 px-3 py-2 rounded">Predict</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-4 py-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="bg-gray-800 text-gray-400 py-4 mt-8">
+        <div class="container mx-auto px-4 text-center">
+            <p>Singapore TOTO Predictor - For entertainment purposes only</p>
+            <p class="text-sm mt-1">Gambling involves risk. Please play responsibly.</p>
+        </div>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

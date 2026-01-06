@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Singapore TOTO Predictor{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <!-- Header -->
+    <div class="text-center">
+        <h1 class="text-4xl font-bold text-gray-800 mb-2">Singapore TOTO Predictor</h1>
+        <p class="text-gray-600">Analyze patterns and generate predictions using statistics and machine learning</p>
+    </div>
+
+    <!-- Status Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-gray-500 text-sm uppercase">Total Draws</h3>
+            <p id="total-draws" class="text-3xl font-bold text-blue-600">Loading...</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-gray-500 text-sm uppercase">Latest Draw</h3>
+            <p id="latest-draw" class="text-3xl font-bold text-green-600">Loading...</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-gray-500 text-sm uppercase">Database Status</h3>
+            <p id="db-status" class="text-3xl font-bold text-gray-600">Loading...</p>
+        </div>
+    </div>
+
+    <!-- Latest Result -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Latest Draw Result</h2>
+        <div id="latest-result" class="text-center">
+            <p class="text-gray-500">Loading latest result...</p>
+        </div>
+    </div>
+
+    <!-- Quick Prediction -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Quick Prediction</h2>
+        <div class="flex flex-wrap gap-4 items-center mb-4">
+            <select id="strategy-select" class="px-4 py-2 border rounded-lg">
+                <option value="ensemble">Ensemble (Recommended)</option>
+                <option value="hot">Hot Numbers</option>
+                <option value="cold">Cold Numbers</option>
+                <option value="balanced">Balanced</option>
+                <option value="ml">Machine Learning</option>
+            </select>
+            <button id="predict-btn" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700">
+                Generate Prediction
+            </button>
+        </div>
+        <div id="prediction-result" class="text-center py-4">
+            <p class="text-gray-500">Click the button to generate a prediction</p>
+        </div>
+    </div>
+
+    <!-- Hot & Cold Numbers -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Hot Numbers (Most Frequent)</h2>
+            <div id="hot-numbers" class="flex flex-wrap gap-2">
+                <p class="text-gray-500">Loading...</p>
+            </div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Cold Numbers (Overdue)</h2>
+            <div id="cold-numbers" class="flex flex-wrap gap-2">
+                <p class="text-gray-500">Loading...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Management -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Data Management</h2>
+        <div class="flex flex-wrap gap-4">
+            <button id="scrape-btn" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+                Update Data (Scrape)
+            </button>
+            <button id="train-btn" class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700">
+                Train ML Model
+            </button>
+        </div>
+        <div id="action-status" class="mt-4 text-gray-600"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Load initial data
+    async function loadDashboard() {
+        try {
+            // Health check
+            const health = await fetch('/api/health').then(r => r.json());
+            document.getElementById('total-draws').textContent = health.total_draws || 0;
+            document.getElementById('db-status').textContent = health.status;
+
+            if (health.last_draw_date) {
+                const date = new Date(health.last_draw_date);
+                document.getElementById('latest-draw').textContent = date.toLocaleDateString();
+            } else {
+                document.getElementById('latest-draw').textContent = 'No data';
+            }
+
+            // Load latest draws
+            if (health.total_draws > 0) {
+                const draws = await fetch('/api/draws?page_size=1').then(r => r.json());
+                if (draws.draws && draws.draws.length > 0) {
+                    const latest = draws.draws[0];
+                    const ballsHtml = latest.winning_numbers.map(n =>
+                        `<span class="ball ball-main">${n}</span>`
+                    ).join('') + `<span class="ball ball-additional">${latest.additional_number}</span>`;
+
+                    document.getElementById('latest-result').innerHTML = `
+                        <p class="text-gray-600 mb-2">Draw #${latest.draw_number} - ${new Date(latest.draw_date).toLocaleDateString()}</p>
+                        <div>${ballsHtml}</div>
+                    `;
+                }
+
+                // Load statistics
+                const stats = await fetch('/api/statistics?lookback=100').then(r => r.json());
+                if (stats.hot_numbers) {
+                    document.getElementById('hot-numbers').innerHTML = stats.hot_numbers.slice(0, 10).map(n =>
+                        `<span class="ball ball-main">${n}</span>`
+                    ).join('');
+                }
+                if (stats.overdue_numbers) {
+                    document.getElementById('cold-numbers').innerHTML = stats.overdue_numbers.slice(0, 10).map(n =>
+                        `<span class="ball ball-additional">${n}</span>`
+                    ).join('');
+                }
+            }
+        } catch (error) {
+            console.error('Error loading dashboard:', error);
+        }
+    }
+
+    // Generate prediction
+    document.getElementById('predict-btn').addEventListener('click', async () => {
+        const strategy = document.getElementById('strategy-select').value;
+        const resultDiv = document.getElementById('prediction-result');
+        resultDiv.innerHTML = '<p class="text-gray-500">Generating prediction...</p>';
+
+        try {
+            const response = await fetch('/api/predict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ strategy, count: 1 })
+            });
+            const data = await response.json();
+
+            if (data.predictions && data.predictions.length > 0) {
+                const pred = data.predictions[0];
+                const ballsHtml = pred.numbers.map(n =>
+                    `<span class="ball ball-predicted">${n}</span>`
+                ).join('');
+
+                resultDiv.innerHTML = `
+                    <div class="mb-2">${ballsHtml}</div>
+                    <p class="text-gray-600">Strategy: ${pred.strategy}</p>
+                    <p class="text-gray-500 text-sm">${pred.reasoning || ''}</p>
+                    ${pred.confidence ? `<p class="text-gray-500 text-sm">Confidence: ${(pred.confidence * 100).toFixed(1)}%</p>` : ''}
+                `;
+            }
+        } catch (error) {
+            resultDiv.innerHTML = `<p class="text-red-500">Error: ${error.message}</p>`;
+        }
+    });
+
+    // Scrape data
+    document.getElementById('scrape-btn').addEventListener('click', async () => {
+        const statusDiv = document.getElementById('action-status');
+        statusDiv.textContent = 'Scraping data... This may take a few minutes.';
+
+        try {
+            const response = await fetch('/api/scrape?max_pages=5', { method: 'POST' });
+            const data = await response.json();
+            statusDiv.textContent = `Scraped ${data.scraped || 0} draws, inserted ${data.inserted || 0} new records.`;
+            loadDashboard();
+        } catch (error) {
+            statusDiv.textContent = `Error: ${error.message}`;
+        }
+    });
+
+    // Train model
+    document.getElementById('train-btn').addEventListener('click', async () => {
+        const statusDiv = document.getElementById('action-status');
+        statusDiv.textContent = 'Training ML model... This may take a while.';
+
+        try {
+            const response = await fetch('/api/train?epochs=30', { method: 'POST' });
+            const data = await response.json();
+            if (data.success) {
+                statusDiv.textContent = `Model trained! Loss: ${data.final_loss?.toFixed(4)}, Accuracy: ${(data.final_accuracy * 100)?.toFixed(1)}%`;
+            } else {
+                statusDiv.textContent = `Training failed: ${data.error}`;
+            }
+        } catch (error) {
+            statusDiv.textContent = `Error: ${error.message}`;
+        }
+    });
+
+    // Initialize
+    loadDashboard();
+</script>
+{% endblock %}

@@ -1,6 +1,6 @@
 # Singapore TOTO Predictor - Project Status
 
-## Current Progress (2026-01-06)
+## Current Progress (2026-01-07)
 
 ### Completed Features
 
@@ -10,7 +10,7 @@
   - `Prediction` model for tracking predictions
   - `NumberStatistics` model for caching stats
 - [x] **Web Scraper** - Scrapes from lottolyzer.com
-  - 250 historical draws loaded
+  - 1805 historical draws loaded (full history)
   - Supports pagination and bulk loading
 - [x] **Statistical Analysis**
   - Number frequency analysis
@@ -27,7 +27,7 @@
   - Hot Numbers (frequency-based)
   - Cold Numbers (overdue-based)
   - Balanced (statistical distribution)
-  - ML/LSTM (neural network) - structure ready, needs TensorFlow
+  - ML/LSTM (neural network) - trained with TensorFlow
   - Ensemble (combines all strategies)
 - [x] **Web Dashboard** - 4 pages with Tailwind CSS
   - Dashboard (/) - overview, quick predict
@@ -59,16 +59,18 @@
 
 ### High Priority
 
-- [x] **Load Full History** - ✓ 1805 draws loaded (2026-01-07)
+- [ ] **Prediction Tracking** - Save predictions and compare with actual results
+  - Store predictions in database before each draw
+  - After draw, compare predicted vs actual numbers
+  - Track hit rate per strategy over time
 
-- [x] **Install TensorFlow** - ✓ Trained LSTM model (2026-01-07)
-
-- [x] **Add Scheduled Scraping** - ✓ Auto-updates Mon/Thu 7pm & daily 8am SGT (2026-01-07)
+- [ ] **Backtest System** - Test strategies against historical data
+  - Simulate predictions on past draws
+  - Calculate accuracy metrics per strategy
+  - Generate performance reports
 
 ### Medium Priority
 
-- [ ] **Prediction Tracking** - Save predictions and compare with actual results
-- [ ] **Backtest System** - Test strategies against historical data
 - [ ] **Add More ML Models**
   - Random Forest classifier
   - XGBoost
@@ -85,29 +87,39 @@
 
 ---
 
+## Completed (2026-01-07)
+
+- [x] **Load Full History** - 1805 draws loaded
+- [x] **Install TensorFlow** - LSTM model trained (50 epochs)
+- [x] **Add Scheduled Scraping** - Mon/Thu 7pm & daily 8am SGT
+- [x] **Add .gitignore** - Proper Python/FastAPI gitignore
+
+---
+
 ## Quick Reference
 
 ### Run Commands
 ```bash
 # Start server
-python run.py server
+./venv/bin/python run.py server
 
 # Populate more data
-python run.py populate --max-pages 20
+./venv/bin/python run.py populate --max-pages 20
 
-# Train ML model (requires tensorflow)
-python run.py train --epochs 50
+# Train ML model
+./venv/bin/python run.py train --epochs 50
 ```
 
 ### Key Files
 | File | Purpose |
 |------|---------|
 | `app/main.py` | FastAPI entry point |
+| `app/scheduler.py` | APScheduler for auto-updates |
 | `app/scraper/singapore_pools.py` | Web scraper |
 | `app/analysis/predictor.py` | Prediction strategies |
 | `app/analysis/statistics.py` | Frequency analysis |
 | `app/api/routes.py` | API endpoints |
-| `data/toto.db` | SQLite database |
+| `data/toto.db` | SQLite database (gitignored) |
 
 ### API Examples
 ```bash

@@ -7,9 +7,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 
-from app.config import APP_TITLE, APP_DESCRIPTION, BASE_DIR, DEBUG
+from app.config import APP_TITLE, APP_DESCRIPTION, BASE_DIR, DEBUG, SCHEDULER_ENABLED
 from app.database.db import init_db
 from app.api.routes import router as api_router
+from app.scheduler import setup_scheduler, shutdown_scheduler
 
 
 @asynccontextmanager
@@ -17,8 +18,12 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     # Startup
     await init_db()
+    if SCHEDULER_ENABLED:
+        setup_scheduler()
     yield
     # Shutdown
+    if SCHEDULER_ENABLED:
+        shutdown_scheduler()
 
 
 app = FastAPI(

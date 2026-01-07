@@ -240,3 +240,10 @@ async def trigger_scrape(
         return result
     finally:
         sync_session.close()
+
+
+@router.get("/scheduler")
+async def get_scheduler_status():
+    """Get scheduler status and next run times."""
+    from app.scheduler import get_scheduler_status
+    return get_scheduler_status()

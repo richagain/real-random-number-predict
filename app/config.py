@@ -38,3 +38,11 @@ MODEL_PATH.mkdir(exist_ok=True)
 APP_TITLE = "Singapore TOTO Predictor"
 APP_DESCRIPTION = "Predict Singapore TOTO numbers using statistical analysis and machine learning"
 DEBUG = os.getenv("DEBUG", "true").lower() == "true"
+
+# Scheduler Configuration
+SCHEDULER_ENABLED = os.getenv("SCHEDULER_ENABLED", "true").lower() == "true"
+SCHEDULER_TIMEZONE = "Asia/Singapore"
+# TOTO draw times: Monday & Thursday at 6:30pm SGT
+# Scrape at 7:00pm to allow results to be posted
+SCRAPE_HOUR = 19
+SCRAPE_MINUTE = 0

@@ -39,13 +39,18 @@
   - GET /api/draws
   - GET /api/statistics
   - GET /api/patterns
+  - GET /api/scheduler
   - POST /api/predict
   - POST /api/scrape
   - POST /api/train
+- [x] **Scheduled Scraping** - Automatic updates via APScheduler
+  - Monday 7:00pm SGT (after draw)
+  - Thursday 7:00pm SGT (after draw)
+  - Daily 8:00am SGT (catch-up check)
 
 ### Database Status
-- **250 draws** loaded (draws #3896 to #4145)
-- Date range: ~2023 to 2026-01-05
+- **1805 draws** loaded (full history)
+- Date range: 1997 to 2026-01-05
 - Latest draw: #4145 on 2026-01-05
 
 ---
@@ -54,18 +59,11 @@
 
 ### High Priority
 
-- [ ] **Load Full History** - Scrape all ~1850 draws (currently only 250)
-  ```bash
-  python run.py populate --max-pages 40
-  ```
+- [x] **Load Full History** - ✓ 1805 draws loaded (2026-01-07)
 
-- [ ] **Install TensorFlow** - Enable ML predictions
-  ```bash
-  pip install tensorflow
-  python run.py train --epochs 50
-  ```
+- [x] **Install TensorFlow** - ✓ Trained LSTM model (2026-01-07)
 
-- [ ] **Add Scheduled Scraping** - Auto-update after each draw (Mon/Thu 6:30pm SGT)
+- [x] **Add Scheduled Scraping** - ✓ Auto-updates Mon/Thu 7pm & daily 8am SGT (2026-01-07)
 
 ### Medium Priority
 

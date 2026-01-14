@@ -18,23 +18,34 @@ from app.config import (
 class NumberAnalyzer:
     """Analyze TOTO number frequencies and statistics."""
 
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, max_draw_number: Optional[int] = None):
         self.session = session
+        self.max_draw_number = max_draw_number
         self.all_numbers = list(range(TOTO_MIN_NUMBER, TOTO_MAX_NUMBER + 1))
 
     def get_all_draws(self, limit: Optional[int] = None) -> list[Draw]:
-        """Get all draws from database, optionally limited."""
+        """Get all draws from database, optionally limited.
+
+        If max_draw_number is set, only returns draws before that draw number.
+        This is used for backtesting to simulate historical predictions.
+        """
         query = select(Draw).order_by(desc(Draw.draw_number))
+        if self.max_draw_number:
+            query = query.where(Draw.draw_number < self.max_draw_number)
         if limit:
             query = query.limit(limit)
         result = self.session.execute(query).scalars().all()
         return list(result)
 
     def get_total_draws(self) -> int:
-        """Get total number of draws in database."""
-        return self.session.execute(
-            select(func.count(Draw.id))
-        ).scalar() or 0
+        """Get total number of draws in database.
+
+        If max_draw_number is set, only counts draws before that draw number.
+        """
+        query = select(func.count(Draw.id))
+        if self.max_draw_number:
+            query = query.where(Draw.draw_number < self.max_draw_number)
+        return self.session.execute(query).scalar() or 0
 
     def calculate_frequency(
         self,

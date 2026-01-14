@@ -69,3 +69,9 @@ async def statistics_page(request: Request):
 async def predict_page(request: Request):
     """Render prediction page."""
     return templates.TemplateResponse("predict.html", {"request": request})
+
+
+@app.get("/backtest", response_class=HTMLResponse)
+async def backtest_page(request: Request):
+    """Render backtest page."""
+    return templates.TemplateResponse("backtest.html", {"request": request})

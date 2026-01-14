@@ -13,9 +13,10 @@ from app.analysis.statistics import NumberAnalyzer
 class PatternAnalyzer:
     """Analyze patterns in TOTO draws."""
 
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, max_draw_number: Optional[int] = None):
         self.session = session
-        self.number_analyzer = NumberAnalyzer(session)
+        self.max_draw_number = max_draw_number
+        self.number_analyzer = NumberAnalyzer(session, max_draw_number)
 
     def find_consecutive_patterns(
         self,

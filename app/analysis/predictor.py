@@ -20,10 +20,11 @@ from app.config import (
 class PredictionStrategy:
     """Base class for prediction strategies."""
 
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, max_draw_number: Optional[int] = None):
         self.session = session
-        self.number_analyzer = NumberAnalyzer(session)
-        self.pattern_analyzer = PatternAnalyzer(session)
+        self.max_draw_number = max_draw_number
+        self.number_analyzer = NumberAnalyzer(session, max_draw_number)
+        self.pattern_analyzer = PatternAnalyzer(session, max_draw_number)
         self.all_numbers = list(range(TOTO_MIN_NUMBER, TOTO_MAX_NUMBER + 1))
 
     def generate(self, count: int = 1) -> list[dict]:
@@ -186,8 +187,8 @@ class BalancedStrategy(PredictionStrategy):
 class LSTMStrategy(PredictionStrategy):
     """LSTM-based sequence prediction."""
 
-    def __init__(self, session: Session):
-        super().__init__(session)
+    def __init__(self, session: Session, max_draw_number: Optional[int] = None):
+        super().__init__(session, max_draw_number)
         self.model = None
         self.model_path = MODEL_PATH / "lstm_model.keras"
 
@@ -292,7 +293,7 @@ class LSTMStrategy(PredictionStrategy):
                 result = self.train()
                 if not result.get("success"):
                     # Fallback to balanced strategy
-                    fallback = BalancedStrategy(self.session)
+                    fallback = BalancedStrategy(self.session, self.max_draw_number)
                     preds = fallback.generate(count)
                     for p in preds:
                         p["strategy"] = "ml"
@@ -304,7 +305,7 @@ class LSTMStrategy(PredictionStrategy):
         draws = sorted(draws, key=lambda d: d.draw_number)
 
         if len(draws) < LSTM_SEQUENCE_LENGTH:
-            fallback = BalancedStrategy(self.session)
+            fallback = BalancedStrategy(self.session, self.max_draw_number)
             return fallback.generate(count)
 
         # Prepare input sequence
@@ -346,9 +347,9 @@ class EnsembleStrategy(PredictionStrategy):
         predictions = []
 
         # Get predictions from all strategies
-        hot_strategy = HotNumbersStrategy(self.session)
-        cold_strategy = ColdNumbersStrategy(self.session)
-        balanced_strategy = BalancedStrategy(self.session)
+        hot_strategy = HotNumbersStrategy(self.session, self.max_draw_number)
+        cold_strategy = ColdNumbersStrategy(self.session, self.max_draw_number)
+        balanced_strategy = BalancedStrategy(self.session, self.max_draw_number)
 
         for _ in range(count):
             # Get one prediction from each
@@ -399,8 +400,9 @@ class TOTOPredictor:
         "ensemble": EnsembleStrategy,
     }
 
-    def __init__(self, session: Session):
+    def __init__(self, session: Session, max_draw_number: Optional[int] = None):
         self.session = session
+        self.max_draw_number = max_draw_number
 
     def predict(
         self,
@@ -414,7 +416,7 @@ class TOTOPredictor:
             raise ValueError(f"Unknown strategy: {strategy}. Available: {list(self.STRATEGIES.keys())}")
 
         strategy_class = self.STRATEGIES[strategy_lower]
-        predictor = strategy_class(self.session)
+        predictor = strategy_class(self.session, self.max_draw_number)
 
         predictions = predictor.generate(count)
 
@@ -436,5 +438,5 @@ class TOTOPredictor:
 
     def train_ml_model(self, epochs: int = LSTM_EPOCHS) -> dict:
         """Train the ML model."""
-        lstm_strategy = LSTMStrategy(self.session)
+        lstm_strategy = LSTMStrategy(self.session, self.max_draw_number)
         return lstm_strategy.train(epochs)

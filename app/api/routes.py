@@ -247,3 +247,144 @@ async def get_scheduler_status():
     """Get scheduler status and next run times."""
     from app.scheduler import get_scheduler_status
     return get_scheduler_status()
+
+
+# Backtest endpoints
+
+@router.post("/backtest")
+async def run_backtest(
+    strategy: str = Query(..., description="Strategy to test: hot, cold, balanced, ml, ensemble, or 'all'"),
+    num_draws: int = Query(1000, ge=10, le=2000, description="Number of draws to test against"),
+    session: AsyncSession = Depends(get_session)
+):
+    """Run a backtest for a prediction strategy.
+
+    Tests the strategy against historical data by simulating predictions
+    for past draws using only data available before each draw.
+    """
+    from app.database.db import get_sync_session
+    from app.analysis.backtest import Backtester
+
+    sync_session = get_sync_session()
+    try:
+        backtester = Backtester(sync_session)
+
+        if strategy.lower() == "all":
+            results = backtester.run_all_strategies(num_draws=num_draws)
+            comparison = backtester.compare_strategies(results)
+            return {
+                "results": [
+                    {
+                        "id": r.id,
+                        "strategy": r.strategy,
+                        "start_draw": r.start_draw,
+                        "end_draw": r.end_draw,
+                        "total_predictions": r.total_predictions,
+                        "match_distribution": r.match_distribution,
+                        "average_matches": round(r.average_matches, 4),
+                        "best_match": r.best_match,
+                        "hit_rate_1_plus": round(r.hit_rate_1_plus, 2),
+                        "hit_rate_2_plus": round(r.hit_rate_2_plus, 2),
+                        "hit_rate_3_plus": round(r.hit_rate_3_plus, 2),
+                        "execution_time_seconds": round(r.execution_time_seconds, 2) if r.execution_time_seconds else None,
+                        "created_at": r.created_at.isoformat() if r.created_at else None,
+                    }
+                    for r in results
+                ],
+                "comparison": comparison,
+            }
+        else:
+            result = backtester.run(strategy=strategy, num_draws=num_draws)
+            return {
+                "id": result.id,
+                "strategy": result.strategy,
+                "start_draw": result.start_draw,
+                "end_draw": result.end_draw,
+                "total_predictions": result.total_predictions,
+                "match_distribution": result.match_distribution,
+                "average_matches": round(result.average_matches, 4),
+                "best_match": result.best_match,
+                "hit_rate_1_plus": round(result.hit_rate_1_plus, 2),
+                "hit_rate_2_plus": round(result.hit_rate_2_plus, 2),
+                "hit_rate_3_plus": round(result.hit_rate_3_plus, 2),
+                "execution_time_seconds": round(result.execution_time_seconds, 2) if result.execution_time_seconds else None,
+                "created_at": result.created_at.isoformat() if result.created_at else None,
+            }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        sync_session.close()
+
+
+@router.get("/backtest/results")
+async def list_backtest_results(
+    strategy: Optional[str] = Query(None, description="Filter by strategy"),
+    limit: int = Query(20, ge=1, le=100, description="Maximum number of results"),
+    session: AsyncSession = Depends(get_session)
+):
+    """List previous backtest results."""
+    from app.database.db import get_sync_session
+    from app.analysis.backtest import Backtester
+
+    sync_session = get_sync_session()
+    try:
+        backtester = Backtester(sync_session)
+        results = backtester.get_saved_results(strategy=strategy, limit=limit)
+
+        return {
+            "results": [
+                {
+                    "id": r.id,
+                    "strategy": r.strategy,
+                    "start_draw": r.start_draw,
+                    "end_draw": r.end_draw,
+                    "total_predictions": r.total_predictions,
+                    "average_matches": round(r.average_matches, 4),
+                    "best_match": r.best_match,
+                    "hit_rate_3_plus": round(r.hit_rate_3_plus, 2),
+                    "created_at": r.created_at.isoformat() if r.created_at else None,
+                }
+                for r in results
+            ],
+            "count": len(results),
+        }
+    finally:
+        sync_session.close()
+
+
+@router.get("/backtest/results/{result_id}")
+async def get_backtest_result(
+    result_id: int,
+    session: AsyncSession = Depends(get_session)
+):
+    """Get a specific backtest result by ID."""
+    from app.database.db import get_sync_session
+    from app.analysis.backtest import Backtester
+
+    sync_session = get_sync_session()
+    try:
+        backtester = Backtester(sync_session)
+        result = backtester.get_result_by_id(result_id)
+
+        if not result:
+            raise HTTPException(status_code=404, detail="Backtest result not found")
+
+        return {
+            "id": result.id,
+            "strategy": result.strategy,
+            "start_draw": result.start_draw,
+            "end_draw": result.end_draw,
+            "total_predictions": result.total_predictions,
+            "match_distribution": result.match_distribution,
+            "average_matches": round(result.average_matches, 4),
+            "best_match": result.best_match,
+            "hit_rate_1_plus": round(result.hit_rate_1_plus, 2),
+            "hit_rate_2_plus": round(result.hit_rate_2_plus, 2),
+            "hit_rate_3_plus": round(result.hit_rate_3_plus, 2),
+            "execution_time_seconds": round(result.execution_time_seconds, 2) if result.execution_time_seconds else None,
+            "created_at": result.created_at.isoformat() if result.created_at else None,
+        }
+    finally:
+        sync_session.close()

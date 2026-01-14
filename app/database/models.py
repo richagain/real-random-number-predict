@@ -131,3 +131,74 @@ class NumberStatistics(Base):
 
     def __repr__(self):
         return f"<NumberStats #{self.number}: {self.total_appearances} appearances>"
+
+
+class BacktestResult(Base):
+    """Model for storing backtest results."""
+
+    __tablename__ = "backtest_results"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Backtest configuration
+    strategy = Column(String(50), nullable=False)  # hot, cold, balanced, ml, ensemble
+    start_draw = Column(Integer, nullable=False)
+    end_draw = Column(Integer, nullable=False)
+    total_predictions = Column(Integer, nullable=False)
+
+    # Match distribution (count of predictions with 0, 1, 2, 3, 4, 5, 6 matches)
+    matches_0 = Column(Integer, default=0)
+    matches_1 = Column(Integer, default=0)
+    matches_2 = Column(Integer, default=0)
+    matches_3 = Column(Integer, default=0)
+    matches_4 = Column(Integer, default=0)
+    matches_5 = Column(Integer, default=0)
+    matches_6 = Column(Integer, default=0)
+
+    # Aggregate metrics
+    average_matches = Column(Float, nullable=False)
+    best_match = Column(Integer, nullable=False)
+    execution_time_seconds = Column(Float, nullable=True)
+
+    @property
+    def match_distribution(self) -> dict[int, int]:
+        """Return match distribution as a dictionary."""
+        return {
+            0: self.matches_0,
+            1: self.matches_1,
+            2: self.matches_2,
+            3: self.matches_3,
+            4: self.matches_4,
+            5: self.matches_5,
+            6: self.matches_6,
+        }
+
+    @property
+    def hit_rate_1_plus(self) -> float:
+        """Percentage of predictions with at least 1 match."""
+        if self.total_predictions == 0:
+            return 0.0
+        hits = sum([self.matches_1, self.matches_2, self.matches_3,
+                    self.matches_4, self.matches_5, self.matches_6])
+        return (hits / self.total_predictions) * 100
+
+    @property
+    def hit_rate_2_plus(self) -> float:
+        """Percentage of predictions with at least 2 matches."""
+        if self.total_predictions == 0:
+            return 0.0
+        hits = sum([self.matches_2, self.matches_3, self.matches_4,
+                    self.matches_5, self.matches_6])
+        return (hits / self.total_predictions) * 100
+
+    @property
+    def hit_rate_3_plus(self) -> float:
+        """Percentage of predictions with at least 3 matches."""
+        if self.total_predictions == 0:
+            return 0.0
+        hits = sum([self.matches_3, self.matches_4, self.matches_5, self.matches_6])
+        return (hits / self.total_predictions) * 100
+
+    def __repr__(self):
+        return f"<BacktestResult ({self.strategy}): {self.start_draw}-{self.end_draw}, avg={self.average_matches:.2f}>"

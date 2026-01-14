@@ -50,11 +50,13 @@ coverage.xml
 
 # Data & Models (large files)
 data/*.db
-data/models/
 *.h5
-*.keras
 *.pkl
 *.joblib
+
+# Keep trained models in git
+!data/models/
+!data/models/*.keras
 
 # Environment & Secrets
 .env
